@@ -3198,9 +3198,36 @@ with tabs[1]:
     st.markdown("### 👥 Employee-Level Breakdown")
     st.markdown("**Detailed view of all goals with SMART analysis and AI feedback**")
     
+    # Employee search feature
+    col_search1, col_search2 = st.columns([2, 1])
+    with col_search1:
+        employee_search = st.text_input(
+            "🔍 Search Employee (by Name or ID):",
+            value="",
+            placeholder="Type employee name or ID to search...",
+            key="employee_search_tables"
+        )
+    with col_search2:
+        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
+        if employee_search:
+            st.caption(f"Searching for: '{employee_search}'")
+    
+    # Apply employee search filter if search term is provided
+    if employee_search and employee_search.strip():
+        search_term = employee_search.strip().lower()
+        # Filter by Employee Name or Employee ID (case-insensitive)
+        search_mask = (
+            filtered_for_tables['Employee Name'].astype(str).str.lower().str.contains(search_term, na=False) |
+            filtered_for_tables['Employee ID'].astype(str).str.lower().str.contains(search_term, na=False)
+        )
+        filtered_for_tables = filtered_for_tables[search_mask]
+        if len(filtered_for_tables) > 0:
+            st.success(f"✅ Found {len(filtered_for_tables)} goal(s) matching '{employee_search}'")
+        else:
+            st.warning(f"⚠️ No goals found matching '{employee_search}'")
+    
     emp_cols = [
         "Employee Name", "Employee ID", "Business Unit", "Department", "Domain", "Designation", "Goal Description", "AI Rewritten Goal", "SMART_score", "Quality",
-        "All_SMART_Pillars", "Employee_Duplicate",
         "Specific", "Measurable", "Achievable", "Relevant", "TimeBound"
     ]
     
@@ -3217,6 +3244,12 @@ with tabs[1]:
         emp_cols.insert(6, manager_col)  # Insert original manager column after Designation
     
     emp_cols = [c for c in emp_cols if c in filtered.columns]
+    
+    # Add All_SMART_Pillars and Employee_Duplicate at the end if they exist
+    if 'All_SMART_Pillars' in filtered.columns and 'All_SMART_Pillars' not in emp_cols:
+        emp_cols.append('All_SMART_Pillars')
+    if 'Employee_Duplicate' in filtered.columns and 'Employee_Duplicate' not in emp_cols:
+        emp_cols.append('Employee_Duplicate')
     
     # Add explanation for the enhanced columns
     st.markdown("""
@@ -3294,12 +3327,25 @@ with tabs[1]:
         display_df['SMART_score'] = score_from_explanation
         working_emp.loc[display_df.index, 'SMART_score'] = score_from_explanation.values
         
-        # Move Combined Analysis Text to after Goal Description
+        # Update checkbox columns (Specific, Measurable, Achievable, Relevant, TimeBound) 
+        # to match exactly what the SMART Explanation says
+        # The explanation uses "✓" for present and "✗" for missing
+        for pillar in smart_pillars:
+            if pillar in display_df.columns:
+                # Extract boolean value from explanation: True if starts with "✓", False if starts with "✗"
+                pillar_values = explanations_series.apply(
+                    lambda e: isinstance(e.get(pillar, ''), str) and e.get(pillar, '').strip().startswith("✓")
+                )
+                display_df[pillar] = pillar_values
+                # Also update working_emp and filtered_emp to keep them in sync
+                working_emp.loc[display_df.index, pillar] = pillar_values.values
+                filtered_emp.loc[display_df.index, pillar] = pillar_values.values
+        
+        # Move Combined Analysis Text to the end of the table (last column)
         cols_order = list(display_df.columns)
         if 'Combined Analysis Text' in cols_order:
             cols_order.remove('Combined Analysis Text')
-            goal_idx = cols_order.index('Goal Description') if 'Goal Description' in cols_order else 0
-            cols_order.insert(goal_idx + 1, 'Combined Analysis Text')
+            cols_order.append('Combined Analysis Text')  # Add to the end
             display_df = display_df[cols_order]
         
         # Move SMART Explanation after SMART_score
