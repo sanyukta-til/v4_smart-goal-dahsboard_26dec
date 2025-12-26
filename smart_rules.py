@@ -83,7 +83,7 @@ def get_smart_vocabulary() -> Dict[str, List[str]]:
             'expand', 'streamline', 'introduce', 'revamp', 'upgrade', 'enhance', 'integrate', 'migrate', 'deploy',
             'formulate', 'customise', 'increase', 'reduce', 'improve', 'optimize', 'deliver', 'build', 'train',
             'achieve', 'complete', 'execute', 'acquire', 'utilize', 'collaborate', 'monitor', 'track', 'quantify',
-            'report', 'finalize', 'meet', 'clear', 'precise', 'detailed', 'focused', 'unambiguous',
+            'report', 'finalize', 'meet', 'get', 'clear', 'precise', 'detailed', 'focused', 'unambiguous',
             'architect', 'refactor', 'modularize', 'containerize', 'externalize', 'templatize', 'codify',
             'orchestrate', 'parameterize', 'operationalize', 'harden', 'remediate', 'deprecate', 'sunset',
             'triage', 'standardise', 'productionize', 'pilot', 'rollout', 'scale', 'localize', 'backport',
@@ -195,7 +195,32 @@ def is_empty_value(text) -> bool:
     return str(text).strip().lower() in EMPTY_METRIC_VALUES
 
 
+def expand_abbreviations(text: str) -> str:
+    """
+    Expand common abbreviations in goal descriptions.
+    'gt' means 'get' in goal descriptions.
+    """
+    if not text or pd.isna(text):
+        return text
+    
+    txt = str(text)
+    
+    # Common abbreviations mapping
+    abbreviations = {
+        r'\bgt\b': 'get',  # 'gt' means 'get'
+        r'\bgt\.': 'get',  # 'gt.' means 'get'
+        r'\bgt\s': 'get ',  # 'gt ' means 'get '
+    }
+    
+    # Apply abbreviation expansion
+    for abbrev, expansion in abbreviations.items():
+        txt = re.sub(abbrev, expansion, txt, flags=re.IGNORECASE)
+    
+    return txt
+
 def has_specific(text: str) -> bool:
+    # Expand abbreviations first (e.g., 'gt' -> 'get')
+    text = expand_abbreviations(text)
     txt = str(text).lower().strip()
     if not txt or txt == 'nan':
         return False

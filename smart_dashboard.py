@@ -750,6 +750,12 @@ def analyze_smart_goal(goal_desc, target, metric, business_unit=None, domain=Non
     if pd.isna(goal_desc) or str(goal_desc).strip() == '' or str(goal_desc).strip().lower() == 'nan':
         return {'Specific': False, 'Measurable': False, 'Achievable': False, 'Relevant': False, 'TimeBound': False}
     
+    # Import abbreviation expansion function
+    from smart_rules import expand_abbreviations
+    
+    # Expand abbreviations (e.g., 'gt' -> 'get') before analysis
+    goal_desc = expand_abbreviations(str(goal_desc))
+    
     # Start with the fast analysis as a conservative baseline
     fast_result = analyze_smart_goal_fast(goal_desc, target, metric, business_unit, domain)
     result = fast_result.copy()
@@ -1002,6 +1008,12 @@ def analyze_smart_goal_fast(goal_desc, target, metric, business_unit=None, domai
     if pd.isna(goal_desc) or str(goal_desc).strip() == '' or str(goal_desc).strip().lower() == 'nan':
         return {'Specific': False, 'Measurable': False, 'Achievable': False, 'Relevant': False, 'TimeBound': False}
 
+    # Import abbreviation expansion function
+    from smart_rules import expand_abbreviations
+    
+    # Expand abbreviations (e.g., 'gt' -> 'get') before analysis
+    goal_desc = expand_abbreviations(str(goal_desc))
+    
     goal_text = str(goal_desc)
     metric_text = '' if pd.isna(metric) else str(metric)
     target_text = '' if pd.isna(target) else str(target)
@@ -1756,6 +1768,13 @@ new_columns = pd.DataFrame({
 df = pd.concat([df, new_columns], axis=1)
 
 # --- Sidebar Filters & Info ---
+# Add refresh button at the top of sidebar
+st.sidebar.markdown("### 🔄 Data Refresh")
+if st.sidebar.button("🔄 Refresh Dashboard Data", use_container_width=True, help="Clear cache and reload data from output file"):
+    st.cache_data.clear()
+    st.rerun()
+st.sidebar.markdown("---")
+
 st.sidebar.header("Filters")
 
 # Business Unit filter
@@ -3313,7 +3332,12 @@ with tabs[1]:
             display_df['SMART_score'] = display_df[smart_pillars].fillna(False).astype(bool).astype(int).sum(axis=1)
 
         # Use filtered_emp to get all columns needed for explanations
-        display_df['Combined Analysis Text'] = working_emp.loc[display_df.index, 'Combined_Text']
+        # Ensure Combined Analysis Text shows the formatted content with all fields
+        if 'Combined_Text' in working_emp.columns:
+            display_df['Combined Analysis Text'] = working_emp.loc[display_df.index, 'Combined_Text']
+        else:
+            # Create it if it doesn't exist
+            display_df['Combined Analysis Text'] = working_emp.loc[display_df.index].apply(create_combined_text, axis=1)
         
         # Add combined SMART explanation column
         explanations_series = working_emp.loc[display_df.index].apply(explain_smart_score, axis=1)
@@ -3404,6 +3428,12 @@ with tabs[1]:
             return 'background-color: #d1ecf1; color: #0c5460; font-weight: bold; max-width: 400px; white-space: pre-wrap;'  # AI blue
         return 'max-width: 400px; white-space: pre-wrap;'
     
+    # Style the Combined Analysis Text column for better readability
+    def style_combined_text(val):
+        if pd.isna(val) or str(val).strip() == '' or str(val).strip().lower() == 'nan':
+            return 'color: #6c757d; font-style: italic;'
+        return 'max-width: 500px; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; line-height: 1.4;'
+    
     # Apply styling
     styled = display_df.style.map(highlight_smart, subset=smart_pillars)
     
@@ -3414,6 +3444,10 @@ with tabs[1]:
     # Apply styling to SMART Feedback column
     if 'SMART Feedback' in display_df.columns:
         styled = styled.map(style_smart_feedback, subset=['SMART Feedback'])
+    
+    # Apply styling to Combined Analysis Text column
+    if 'Combined Analysis Text' in display_df.columns:
+        styled = styled.map(style_combined_text, subset=['Combined Analysis Text'])
     
     # Add tooltip information for SMART columns
     st.markdown("""
