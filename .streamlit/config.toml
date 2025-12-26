@@ -1,0 +1,56 @@
+[server]
+# Port to run the dashboard on
+port = 8501
+
+# Allow external access for cloud deployment
+address = "0.0.0.0"
+
+# Run in headless mode (no browser popup)
+headless = true
+
+# Don't run on save (prevents auto-restart when files change)
+runOnSave = false
+
+# Maximum message size
+maxMessageSize = 200
+
+# Enable CORS for external access
+enableCORS = true
+
+# Enable XSRF protection
+enableXsrfProtection = true
+
+# Allow file uploads
+fileWatcherType = "auto"
+
+[browser]
+# Don't gather usage stats
+gatherUsageStats = false
+
+# Don't show server address in browser
+showErrorDetails = false
+
+[theme]
+# Custom theme for better appearance
+primaryColor = "#667eea"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
+
+[logger]
+# Log level for debugging
+level = "info"
+
+[client]
+# Show tooltips
+showErrorDetails = false
+
+[runner]
+# Magic commands
+magicEnabled = true
+
+[deprecation]
+# Show deprecation warnings
+showfileUploaderEncoding = false
+showPyplotGlobalUse = false 
