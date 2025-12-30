@@ -1146,7 +1146,7 @@ def analyze_smart_goal_fast(goal_desc, target, metric, business_unit=None, domai
 
 analysis_fn = analyze_smart_goal if enhanced_nlp else analyze_smart_goal_fast
 
-# Process with progress indicator for NLP mode
+# Process with progress indicator for NLP mode (silent processing - no visible status)
 if enhanced_nlp and progress_bar is not None:
     total_rows = len(df)
     results = []
@@ -1219,28 +1219,23 @@ if 'Goal Metric / Measurement Criteria' in df.columns:
 else:
     df['Has_Metric'] = False
 
-st.success(f"✅ SMART analysis complete! Average SMART score: {df['SMART_score'].mean():.2f}")
-
-# Clean manager names (remove IDs in brackets)
+# Clean manager names (remove IDs in brackets) - silent processing
 manager_col = None
 if 'Manager Name (Manager ID)' in df.columns:
     manager_col = 'Manager Name (Manager ID)'
     df['Manager_Name_Clean'] = df[manager_col].str.replace(r'\s*\([^)]*\)', '', regex=True).str.strip()
-    # Count unique managers
+    # Count unique managers (silent - no status message)
     unique_managers = df['Manager_Name_Clean'].nunique()
-    st.info(f"👥 **Total Unique Managers:** {unique_managers}")
 elif 'Manager Name' in df.columns:
     manager_col = 'Manager Name'
     df['Manager_Name_Clean'] = df[manager_col].str.replace(r'\s*\([^)]*\)', '', regex=True).str.strip()
     unique_managers = df['Manager_Name_Clean'].nunique()
-    st.info(f"👥 **Total Unique Managers:** {unique_managers}")
 
-# Handle blank goals - mark them as not filled
+# Handle blank goals - mark them as not filled (silent processing)
 if 'Goal Description' in df.columns:
     df['Goal_Not_Filled'] = df['Goal Description'].isna() | (df['Goal Description'].str.strip() == '') | (df['Goal Description'].str.strip() == 'nan')
     blank_goals_count = df['Goal_Not_Filled'].sum()
-    if blank_goals_count > 0:
-        st.info(f"📝 **Note:** {blank_goals_count} goals are marked as 'Not Filled' due to blank descriptions")
+    # Silent processing - no status message shown
 
 # --- Helper Functions ---
 def get_quality(score):
@@ -1619,10 +1614,10 @@ def detect_duplicates(df):
     df_clean['Goal ID'] = df_clean['Goal ID'].fillna('')
     df_clean['Sub Goal ID'] = df_clean['Sub Goal ID'].fillna('')
     
-    # If Employee_Duplicate exists from audit file, use it (single source of truth)
+    # If Employee_Duplicate exists from audit file, use it (single source of truth) - silent processing
     if "Employee_Duplicate" in df_copy.columns:
         df_copy["Is Duplicate"] = df_copy["Employee_Duplicate"].astype(bool)
-        st.info("✅ Using Employee_Duplicate flag from audit file (single source of truth)")
+        # Silent processing - no status message shown
     else:
         # Initialize duplicate flags
         df_copy["Is Duplicate"] = False
@@ -1769,7 +1764,8 @@ df = pd.concat([df, new_columns], axis=1)
 
 # --- Sidebar Filters & Info ---
 # Add refresh button at the top of sidebar
-st.sidebar.markdown("### 🔄 Data Refresh")
+st.sidebar.markdown('<h3 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem;">🔄 Data Refresh</h3>', unsafe_allow_html=True)
+st.sidebar.markdown('<p style="font-size: 0.75rem; color: #6c757d; margin-bottom: 0.5rem;">Clear cache and reload data from output file</p>', unsafe_allow_html=True)
 if st.sidebar.button("🔄 Refresh Dashboard Data", use_container_width=True, help="Clear cache and reload data from output file"):
     st.cache_data.clear()
     st.rerun()
@@ -2055,8 +2051,9 @@ with tabs[0]:
     # Combined KPI Dashboard - All metrics in one clean section
     st.markdown("### 📊 Key Performance Indicators")
     
-    # First row - Core metrics with vibrant styling (always show 6 columns: Total Employees, Goals Filled, Goals Not Filled, Total Goals, Avg Goals/Employee, Avg SMART Score)
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    # Use 3 columns per row instead of 6 to give more space for text
+    # First row - Core metrics (Total Employees, Goals Filled, Goals Not Filled)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         if theme_mode == "Dark":
@@ -2123,6 +2120,9 @@ with tabs[0]:
                 help=not_filled_help
             )
     
+    # Second row - Additional metrics (Total Goals, Avg Goals/Employee, Avg SMART Score)
+    col4, col5, col6 = st.columns(3)
+    
     # Adjust column assignments
     col_goals, col_avg, col_smart = col4, col5, col6
     
@@ -2177,10 +2177,10 @@ with tabs[0]:
     
     # Set labels based on view mode
     if view_mode == "Employee Based":
-        high_quality_label = "🏆 Employees with High Quality Goals"
-        medium_quality_label = "⚖️ Employees with Medium Quality Goals"
-        low_quality_label = "⚠️ Employees with Low Quality Goals"
-        fully_smart_label = "✅ Employees with Fully SMART Goals"
+        high_quality_label = "🏆 High Quality Goals"
+        medium_quality_label = "⚖️ Medium Quality Goals"
+        low_quality_label = "⚠️ Low Quality Goals"
+        fully_smart_label = "✅ Fully SMART Goals"
         high_quality_help = f"Employees with average SMART score 4-5 ({high_quality_count:,} employees)"
         medium_quality_help = f"Employees with average SMART score 2-3 ({medium_quality_count:,} employees)"
         low_quality_help = f"Employees with average SMART score 0-1 ({low_quality_count:,} employees)"
@@ -2438,7 +2438,47 @@ with tabs[0]:
         with col2:
             best_domain = domain_smart_scores.iloc[0]['Domain']
             best_score = domain_smart_scores.iloc[0]['Average SMART Score']
-            st.metric("Highest Performing Domain", f"{best_domain} ({best_score:.2f})")
+            # Add JavaScript to add a class to this specific metric for styling and add title attribute for hover
+            st.markdown("""
+            <script>
+            setTimeout(function() {
+                const metrics = document.querySelectorAll('[data-testid="metric-container"]');
+                metrics.forEach(function(metric) {
+                    const label = metric.querySelector('label');
+                    if (label && label.textContent.includes('Highest Performing Domain')) {
+                        metric.classList.add('highest-domain-metric');
+                        const valueElement = metric.querySelector('[data-testid="metric-value"]');
+                        if (valueElement) {
+                            // Add title attribute for hover tooltip
+                            valueElement.setAttribute('title', valueElement.textContent);
+                        }
+                    }
+                });
+            }, 100);
+            </script>
+            <style>
+            .highest-domain-metric [data-testid="metric-value"] {
+                font-size: 0.65rem !important;
+                line-height: 1.4 !important;
+                word-wrap: break-word !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                max-width: 100% !important;
+                display: block !important;
+                text-overflow: clip !important;
+                hyphens: auto !important;
+                overflow-wrap: break-word !important;
+            }
+            .highest-domain-metric {
+                min-height: auto !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            # Use st.metric with same styling as Total Domains
+            domain_value = f"{best_domain} ({best_score:.2f})"
+            st.metric("Highest Performing Domain", domain_value)
         
         # Now show the chart
         # Set hover data: when goal-based, show employee count; when employee-based, show nothing extra (count is already the color)
@@ -2521,6 +2561,12 @@ with tabs[0]:
             y_label = "Percentage of Goals (%)"
             title_text = "Percentage of Goals Meeting Each SMART Pillar"
         
+        # Add a column for hover text based on view mode
+        if view_mode == "Employee Based":
+            pillar_df['Hover Label'] = 'Unique Employees'
+        else:
+            pillar_df['Hover Label'] = 'Goals'
+        
         fig_smart_pillars = px.bar(
             pillar_df, 
             x='Pillar', 
@@ -2530,13 +2576,22 @@ with tabs[0]:
             color='Percentage',
             color_continuous_scale='Viridis' if theme_mode != "Dark" else 'Turbo',
             template=template,
-            hover_data=['Count'],
+            hover_data=['Count', 'Hover Label'],
             text='Percentage'  # Add percentage labels on bars
         )
-        fig_smart_pillars.update_traces(
-            texttemplate='%{text:.1f}%',  # Format percentage labels
-            textposition='outside'  # Position labels outside bars
-        )
+        # Update hover template to show percentage and count with appropriate label
+        if view_mode == "Employee Based":
+            fig_smart_pillars.update_traces(
+                texttemplate='%{text:.1f}%',  # Format percentage labels
+                textposition='outside',  # Position labels outside bars
+                hovertemplate='<b>%{x}</b><br>Percentage: %{y:.1f}%<br>Unique Employees: %{customdata[0]}<extra></extra>'
+            )
+        else:
+            fig_smart_pillars.update_traces(
+                texttemplate='%{text:.1f}%',  # Format percentage labels
+                textposition='outside',  # Position labels outside bars
+                hovertemplate='<b>%{x}</b><br>Percentage: %{y:.1f}%<br>Goals: %{customdata[0]}<extra></extra>'
+            )
         fig_smart_pillars.update_layout(
             height=400,
             margin=dict(l=20, r=20, t=40, b=20),
@@ -2565,23 +2620,33 @@ with tabs[0]:
         # Check if Employee_Duplicate column exists and compare with Is Duplicate
         has_employee_duplicate = "Employee_Duplicate" in filtered.columns
         
+        # Initialize duplicate detection message variable
+        duplicate_detection_message = None
+        
         if has_employee_duplicate:
             # Check if the two duplicate fields are the same (convert to boolean first)
             duplicate_same = filtered["Is Duplicate"].astype(bool).equals(filtered["Employee_Duplicate"].astype(bool))
             
             if duplicate_same:
-                st.info("✅ **Duplicate Detection:** Both 'Duplicate' and 'Employee Duplicate' fields are identical")
-                problem_counts = {
+                duplicate_detection_message = "✅ **Duplicate Detection:** Both 'Duplicate' and 'Employee Duplicate' fields are identical"
+                problem_percentages = {
                     "Missing Metrics": filtered["Missing Metric"].mean(),
                     "Missing Targets": filtered["Missing Target"].mean(),
                     "Missing SMART Pillar": filtered["Has Missing Pillar"].mean(),
                     "Duplicate Goals": filtered["Is Duplicate"].astype(bool).mean(),  # Merged into one category
                 }
+                # Calculate unique employee counts for each problem type
+                problem_employee_counts = {
+                    "Missing Metrics": filtered[filtered["Missing Metric"] == True]["Employee ID"].nunique(),
+                    "Missing Targets": filtered[filtered["Missing Target"] == True]["Employee ID"].nunique(),
+                    "Missing SMART Pillar": filtered[filtered["Has Missing Pillar"] == True]["Employee ID"].nunique(),
+                    "Duplicate Goals": filtered[filtered["Is Duplicate"].astype(bool) == True]["Employee ID"].nunique(),
+                }
             else:
                 # Calculate the difference (convert to boolean first)
                 duplicate_diff = (filtered["Is Duplicate"].astype(bool) != filtered["Employee_Duplicate"].astype(bool)).mean()
                 
-                problem_counts = {
+                problem_percentages = {
                     "Missing Metrics": filtered["Missing Metric"].mean(),
                     "Missing Targets": filtered["Missing Target"].mean(),
                     "Missing SMART Pillar": filtered["Has Missing Pillar"].mean(),
@@ -2589,14 +2654,37 @@ with tabs[0]:
                     "Employee-Level Duplicates": filtered["Employee_Duplicate"].astype(bool).mean(),
                     "Different Duplicate Types": duplicate_diff,
                 }
+                # Calculate unique employee counts for each problem type
+                problem_employee_counts = {
+                    "Missing Metrics": filtered[filtered["Missing Metric"] == True]["Employee ID"].nunique(),
+                    "Missing Targets": filtered[filtered["Missing Target"] == True]["Employee ID"].nunique(),
+                    "Missing SMART Pillar": filtered[filtered["Has Missing Pillar"] == True]["Employee ID"].nunique(),
+                    "Exact Goal Duplicates": filtered[filtered["Is Duplicate"].astype(bool) == True]["Employee ID"].nunique(),
+                    "Employee-Level Duplicates": filtered[filtered["Employee_Duplicate"].astype(bool) == True]["Employee ID"].nunique(),
+                    "Different Duplicate Types": filtered[(filtered["Is Duplicate"].astype(bool) != filtered["Employee_Duplicate"].astype(bool))]["Employee ID"].nunique(),
+                }
         else:
-            st.info("ℹ️ **Duplicate Detection:** Only 'Duplicate' field available")
-            problem_counts = {
+            duplicate_detection_message = "ℹ️ **Duplicate Detection:** Only 'Duplicate' field available"
+            problem_percentages = {
                 "Missing Metrics": filtered["Missing Metric"].mean(),
                 "Missing Targets": filtered["Missing Target"].mean(),
                 "Missing SMART Pillar": filtered["Has Missing Pillar"].mean(),
                 "Duplicate Goals": filtered["Is Duplicate"].astype(bool).mean(),
             }
+            # Calculate unique employee counts for each problem type
+            problem_employee_counts = {
+                "Missing Metrics": filtered[filtered["Missing Metric"] == True]["Employee ID"].nunique(),
+                "Missing Targets": filtered[filtered["Missing Target"] == True]["Employee ID"].nunique(),
+                "Missing SMART Pillar": filtered[filtered["Has Missing Pillar"] == True]["Employee ID"].nunique(),
+                "Duplicate Goals": filtered[filtered["Is Duplicate"].astype(bool) == True]["Employee ID"].nunique(),
+            }
+        
+        # Create DataFrame with percentages and employee counts for pie chart
+        problem_df = pd.DataFrame({
+            'Problem': list(problem_percentages.keys()),
+            'Percentage': [v*100 for v in problem_percentages.values()],
+            'Employee Count': [problem_employee_counts.get(k, 0) for k in problem_percentages.keys()]
+        })
         
         # Problem types explanation moved below the pie chart for better layout
         
@@ -2606,17 +2694,35 @@ with tabs[0]:
         else:
             pie_colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#f1c40f', '#8e44ad', '#16a085']
         
+        # Create pie chart with percentage values and employee count in hover
         fig_problems = px.pie(
-            names=list(problem_counts.keys()),
-            values=[v*100 for v in problem_counts.values()],
+            problem_df,
+            names='Problem',
+            values='Percentage',
             title="Breakdown of Goal Problems (%)",
-            color_discrete_sequence=pie_colors
+            color_discrete_sequence=pie_colors,
+            hover_data=['Employee Count']
+        )
+        # Update hover template to show percentage and employee count
+        fig_problems.update_traces(
+            hovertemplate='<b>%{label}</b><br>Percentage: %{value:.1f}%<br>Unique Employees: %{customdata[0]}<extra></extra>'
         )
         fig_problems.update_layout(
             height=400,
             margin=dict(l=20, r=20, t=40, b=20)
         )
         st.plotly_chart(fig_problems, use_container_width=True)
+        
+        # Show total unique employees with problems
+        total_unique_employees = filtered["Employee ID"].nunique()
+        # Get unique employees with each problem type
+        employees_with_metrics_problem = set(filtered[filtered["Missing Metric"] == True]["Employee ID"].unique())
+        employees_with_targets_problem = set(filtered[filtered["Missing Target"] == True]["Employee ID"].unique())
+        employees_with_pillar_problem = set(filtered[filtered["Has Missing Pillar"] == True]["Employee ID"].unique())
+        employees_with_duplicate_problem = set(filtered[filtered["Is Duplicate"].astype(bool) == True]["Employee ID"].unique())
+        # Combine all employees with any problem
+        employees_with_problems = len(employees_with_metrics_problem | employees_with_targets_problem | employees_with_pillar_problem | employees_with_duplicate_problem)
+        st.info(f"👥 **Unique Employees:** {employees_with_problems} out of {total_unique_employees} employees have at least one problem")
         
         # Add detailed explanation below the pie chart in an expandable section
         st.markdown("---")  # Add separator
@@ -2641,16 +2747,16 @@ with tabs[0]:
             **Smart Detection:** Text normalization + Employee validation + Meaningful difference checking
             """)
             
-            # Add concise analysis
+                # Add concise analysis
             st.markdown("**📊 Quick Analysis:**")
-            total_problems = sum(problem_counts.values())
+            total_problems = sum(problem_percentages.values())
             if total_problems > 0:
                 # Show key metrics in compact format
                 col_x, col_y = st.columns(2)
                 with col_x:
                     st.metric("📊 Problem Rate", f"{total_problems*100:.1f}%")
                 with col_y:
-                    top_problem = max(problem_counts.items(), key=lambda x: x[1])
+                    top_problem = max(problem_percentages.items(), key=lambda x: x[1])
                     st.metric("⚠️ Top Issue", f"{top_problem[1]*100:.1f}%")
             else:
                 st.success("🎉 **Excellent!** No major problems detected")
@@ -2755,6 +2861,10 @@ with tabs[0]:
                         st.markdown("**👥 Sample of Employee Duplicates:**")
                         sample_emp = emp_duplicates[["Employee Name", "Goal Description"]].head(3)
                         st.dataframe(sample_emp, use_container_width=True, hide_index=True)
+        
+        # Show duplicate detection message after expandable sections
+        if duplicate_detection_message:
+            st.info(duplicate_detection_message)
     
     with col2:
         st.markdown("#### 📊 Goal Load: Employees by Goal Count Bucket")
@@ -3333,11 +3443,23 @@ with tabs[1]:
 
         # Use filtered_emp to get all columns needed for explanations
         # Ensure Combined Analysis Text shows the formatted content with all fields
-        if 'Combined_Text' in working_emp.columns:
-            display_df['Combined Analysis Text'] = working_emp.loc[display_df.index, 'Combined_Text']
-        else:
-            # Create it if it doesn't exist
-            display_df['Combined Analysis Text'] = working_emp.loc[display_df.index].apply(create_combined_text, axis=1)
+        # Always create Combined Analysis Text directly from display_df to ensure proper data
+        # This ensures we have all the necessary columns (Goal Description, Sub Goal Description, Target, Metric)
+        # First, ensure display_df has all required columns from filtered_emp
+        required_cols_for_combined = ['Goal Description', 'Sub Goal Description', 'Target', 'Prefix Target', 'Goal Metric / Measurement Criteria']
+        for col in required_cols_for_combined:
+            if col not in display_df.columns and col in filtered_emp.columns:
+                display_df[col] = filtered_emp.loc[display_df.index, col]
+        
+        # Now create Combined Analysis Text directly from display_df
+        # Create as a Series first to ensure proper dtype
+        combined_text_series = display_df.apply(create_combined_text, axis=1)
+        # Ensure it's a string series and handle any NaN or empty values
+        combined_text_series = combined_text_series.astype(str)
+        combined_text_series = combined_text_series.replace(['nan', 'None', '0.0', '0', ''], '')
+        # Only keep non-empty values, otherwise show a placeholder
+        combined_text_series = combined_text_series.apply(lambda x: x if x and x.strip() else 'No data available')
+        display_df['Combined Analysis Text'] = combined_text_series
         
         # Add combined SMART explanation column
         explanations_series = working_emp.loc[display_df.index].apply(explain_smart_score, axis=1)
@@ -3426,13 +3548,13 @@ with tabs[1]:
             return 'background-color: #e2e3e5; color: #383d41; font-style: italic; max-width: 400px; white-space: pre-wrap;'  # info gray
         elif '🤖' in val_str:
             return 'background-color: #d1ecf1; color: #0c5460; font-weight: bold; max-width: 400px; white-space: pre-wrap;'  # AI blue
-        return 'max-width: 400px; white-space: pre-wrap;'
+        return 'max-width: 100% !important; white-space: pre-wrap;'
     
     # Style the Combined Analysis Text column for better readability
     def style_combined_text(val):
         if pd.isna(val) or str(val).strip() == '' or str(val).strip().lower() == 'nan':
             return 'color: #6c757d; font-style: italic;'
-        return 'max-width: 500px; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; line-height: 1.4;'
+        return 'max-width: 100% !important; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; line-height: 1.4;'
     
     # Apply styling
     styled = display_df.style.map(highlight_smart, subset=smart_pillars)
@@ -3556,13 +3678,25 @@ with tabs[1]:
                 
                 with col_a:
                     if 'Department' in blank_goals_df.columns:
-                        dept_blank = blank_goals_df['Department'].value_counts().head(5)
+                        if view_mode == "Employee Based":
+                            # Count unique employees per department
+                            dept_blank = blank_goals_df.groupby('Department')['Employee ID'].nunique().sort_values(ascending=False).head(5)
+                            dept_blank.name = 'Unique Employees'
+                        else:
+                            # Count goals per department
+                            dept_blank = blank_goals_df['Department'].value_counts().head(5)
                         st.markdown("**By Department:**")
                         st.dataframe(dept_blank, use_container_width=True)
                 
                 with col_b:
                     if 'Business Unit' in blank_goals_df.columns:
-                        bu_blank = blank_goals_df['Business Unit'].value_counts().head(5)
+                        if view_mode == "Employee Based":
+                            # Count unique employees per business unit
+                            bu_blank = blank_goals_df.groupby('Business Unit')['Employee ID'].nunique().sort_values(ascending=False).head(5)
+                            bu_blank.name = 'Unique Employees'
+                        else:
+                            # Count goals per business unit
+                            bu_blank = blank_goals_df['Business Unit'].value_counts().head(5)
                         st.markdown("**By Business Unit:**")
                         st.dataframe(bu_blank, use_container_width=True)
     
@@ -3677,10 +3811,44 @@ p, div, span {
 [data-testid="metric-container"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 20px;
-    padding: 1.5rem;
+    padding: 1rem 0.8rem !important;
     box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
     border: 2px solid rgba(255,255,255,0.3);
     transition: all 0.3s ease;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Ensure column containers don't constrain width and allow text wrapping */
+div[data-testid="column"] {
+    overflow: visible !important;
+    min-width: 0 !important;
+}
+
+div[data-testid="column"] > div {
+    overflow: visible !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Force all metric labels to wrap and be fully visible */
+[data-testid="metric-container"] > div > label,
+[data-testid="metric-container"] label {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    hyphens: auto !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+    display: block !important;
 }
 
 [data-testid="metric-container"]:hover {
@@ -3690,9 +3858,25 @@ p, div, span {
 
 [data-testid="metric-container"] label {
     color: white !important;
-    font-weight: 700;
-    font-size: 1.1rem;
+    font-weight: 600;
+    font-size: 0.75rem !important;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    line-height: 1.5 !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow: visible !important;
+    display: block !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 8px 6px !important;
+    text-overflow: clip !important;
+    hyphens: auto !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+    -webkit-line-clamp: unset !important;
+    display: block !important;
 }
 
 [data-testid="metric-container"] [data-testid="metric-value"] {
@@ -3700,6 +3884,28 @@ p, div, span {
     font-size: 2.5rem !important;
     font-weight: 800;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    word-wrap: break-word !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+}
+
+/* Reduce font size for "Highest Performing Domain" metric value to make long domain names readable */
+.highest-domain-metric [data-testid="metric-value"] {
+    font-size: 0.65rem !important;
+    line-height: 1.4 !important;
+    word-wrap: break-word !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+    display: block !important;
+    text-overflow: clip !important;
+    hyphens: auto !important;
+    overflow-wrap: break-word !important;
+}
+.highest-domain-metric {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
 }
 
 /* Enhanced table styling with modern colors */
@@ -3740,10 +3946,23 @@ p, div, span {
 
 /* Improve readability of SMART Feedback column */
 [data-testid="stDataFrame"] td {
-    max-width: 400px;
+    max-width: 100% !important;
     white-space: pre-wrap;
     word-wrap: break-word;
     line-height: 1.4;
+}
+
+/* Responsive max-width for table cells */
+@media screen and (max-width: 768px) {
+    [data-testid="stDataFrame"] td {
+        max-width: 100% !important;
+    }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+    [data-testid="stDataFrame"] td {
+        max-width: 100% !important;
+    }
 }
 
 /* Enhanced chart styling with modern colors */
@@ -3761,12 +3980,21 @@ p, div, span {
     box-shadow: 0 12px 40px rgba(102, 126, 234, 0.25);
 }
 
-/* Better section headers with modern colors */
+/* Better section headers with modern colors - uniform font sizes */
 h1, h2, h3, h4 {
     color: #2c3e50;
     font-weight: 700;
     margin-bottom: 1.5rem;
     text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Uniform font sizes for all headings in Dashboard tab */
+h3 {
+    font-size: 1.3rem !important;
+}
+
+h4 {
+    font-size: 1.1rem !important;
 }
 
 h1 {
@@ -3854,6 +4082,425 @@ h1 {
     color: white;
     border-color: #667eea;
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+}
+
+/* Uniform font sizes for clean, readable dashboard */
+/* Standardize body text */
+p, div, span, li {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    color: #2c3e50;
+}
+
+/* Standardize markdown text */
+.stMarkdown p {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+}
+
+.stMarkdown li {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Standardize info/warning/error boxes text */
+.stAlert, .stInfo, .stSuccess, .stWarning, .stError {
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Standardize sidebar text */
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] div,
+[data-testid="stSidebar"] span {
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Standardize sidebar headers */
+[data-testid="stSidebar"] h3 {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+/* Standardize table text */
+.stDataFrame td, .stDataFrame th {
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+}
+
+/* Standardize button text */
+.stButton > button {
+    font-size: 0.95rem !important;
+}
+
+/* Standardize selectbox and multiselect text */
+.stSelectbox label,
+.stMultiSelect label {
+    font-size: 0.9rem !important;
+}
+
+/* Standardize expander text */
+.streamlit-expanderHeader {
+    font-size: 1rem !important;
+}
+
+.streamlit-expanderContent {
+    font-size: 0.95rem !important;
+}
+
+/* Make Data Refresh section smaller - handled inline in HTML */
+
+/* Standardize caption text */
+.stCaption {
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+}
+
+/* Standardize metric labels (already done above, but ensure consistency) */
+[data-testid="metric-container"] label {
+    font-size: 0.75rem !important;
+    line-height: 1.5 !important;
+    min-height: auto !important;
+    padding: 8px 6px !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+    display: block !important;
+}
+
+/* Clean spacing for better readability */
+.stMarkdown {
+    margin-bottom: 1rem !important;
+}
+
+h1, h2, h3, h4 {
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Uniform spacing for sections */
+.stMarkdown > hr {
+    margin: 2rem 0 !important;
+}
+
+/* Clean table appearance */
+.stDataFrame {
+    font-size: 0.9rem !important;
+}
+
+/* Standardize info boxes */
+.stInfo, .stSuccess, .stWarning, .stError {
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    margin: 1rem 0 !important;
+}
+
+/* Clean sidebar appearance */
+[data-testid="stSidebar"] {
+    font-size: 0.9rem !important;
+}
+
+/* Uniform spacing for all text elements */
+.main .block-container {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - ADAPTIVE TO ALL SCREENS
+   ============================================ */
+
+/* Base responsive container */
+.stApp {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+.main .block-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Mobile devices (phones) - up to 768px */
+@media screen and (max-width: 768px) {
+    /* Adjust main container */
+    .main .block-container {
+        padding: 0.5rem !important;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+    
+    /* Make columns stack vertically on mobile */
+    div[data-testid="column"] {
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Adjust KPI metric containers for mobile */
+    [data-testid="metric-container"] {
+        padding: 0.8rem 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    [data-testid="metric-container"] label {
+        font-size: 0.7rem !important;
+        line-height: 1.4 !important;
+        padding: 6px 4px !important;
+    }
+    
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        font-size: 1.8rem !important;
+    }
+    
+    /* Adjust headings */
+    h1 { font-size: 1.5rem !important; }
+    h2 { font-size: 1.3rem !important; }
+    h3 { font-size: 1.1rem !important; }
+    h4 { font-size: 1rem !important; }
+    
+    /* Adjust sidebar */
+    [data-testid="stSidebar"] {
+        width: 100% !important;
+    }
+    
+    /* Make tables scrollable on mobile */
+    .stDataFrame {
+        overflow-x: auto !important;
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    .stDataFrame table {
+        min-width: 600px !important;
+    }
+    
+    /* Adjust chart containers */
+    [data-testid="stPlotlyChart"] {
+        width: 100% !important;
+        padding: 0.5rem !important;
+    }
+    
+    /* Adjust buttons */
+    .stButton > button {
+        padding: 0.6rem 1.5rem !important;
+        font-size: 0.9rem !important;
+        width: 100% !important;
+    }
+    
+    /* Adjust tabs */
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.6rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    /* Adjust info boxes */
+    .stInfo, .stSuccess, .stWarning, .stError {
+        padding: 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    /* Adjust text sizes */
+    p, div, span {
+        font-size: 0.9rem !important;
+    }
+}
+
+/* Tablet devices - 769px to 1024px */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+    /* Adjust main container */
+    .main .block-container {
+        padding: 1rem !important;
+    }
+    
+    /* Adjust KPI metric containers */
+    [data-testid="metric-container"] {
+        padding: 0.9rem 0.7rem !important;
+    }
+    
+    [data-testid="metric-container"] label {
+        font-size: 0.7rem !important;
+    }
+    
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        font-size: 2rem !important;
+    }
+    
+    /* Adjust headings */
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.2rem !important; }
+    h4 { font-size: 1.05rem !important; }
+    
+    /* Make tables responsive */
+    .stDataFrame {
+        overflow-x: auto !important;
+    }
+}
+
+/* Small laptops - 1025px to 1366px */
+@media screen and (min-width: 1025px) and (max-width: 1366px) {
+    .main .block-container {
+        padding: 1.5rem !important;
+    }
+    
+    [data-testid="metric-container"] label {
+        font-size: 0.72rem !important;
+    }
+}
+
+/* Large screens - 1367px and above */
+@media screen and (min-width: 1367px) {
+    .main .block-container {
+        max-width: 1400px !important;
+        margin: 0 auto !important;
+    }
+}
+
+/* Landscape orientation adjustments for mobile */
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+    [data-testid="metric-container"] label {
+        font-size: 0.65rem !important;
+        min-height: 2.5em !important;
+    }
+    
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        font-size: 1.5rem !important;
+    }
+}
+
+/* Ensure all containers are responsive */
+div[data-testid="column"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+}
+
+/* Make Streamlit columns responsive */
+.stColumns > div {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Responsive sidebar */
+@media screen and (max-width: 768px) {
+    [data-testid="stSidebar"] {
+        position: relative !important;
+        width: 100% !important;
+    }
+}
+
+/* Responsive tables - horizontal scroll on small screens */
+@media screen and (max-width: 1024px) {
+    .stDataFrame {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .stDataFrame table {
+        width: 100% !important;
+        min-width: 600px !important;
+    }
+}
+
+/* Responsive charts */
+@media screen and (max-width: 768px) {
+    .js-plotly-plot {
+        width: 100% !important;
+        height: auto !important;
+    }
+}
+
+/* Ensure text doesn't overflow on any device */
+* {
+    box-sizing: border-box !important;
+}
+
+/* Prevent horizontal scroll */
+body, html {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Responsive metric containers - adjust columns based on screen size */
+@media screen and (max-width: 768px) {
+    /* Stack all metrics vertically on mobile */
+    div[data-testid="column"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+    /* 2 columns on tablets */
+    div[data-testid="column"] {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+    .main .block-container {
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    [data-testid="metric-container"] {
+        -webkit-transform: translateZ(0) !important;
+    }
+}
+
+/* High DPI displays */
+@media screen and (-webkit-min-device-pixel-ratio: 2),
+       screen and (min-resolution: 192dpi) {
+    [data-testid="metric-container"] label {
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+    }
+}
+
+/* Print styles - ensure visibility when printing */
+@media print {
+    .main .block-container {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    [data-testid="metric-container"] {
+        page-break-inside: avoid !important;
+    }
+}
+
+/* Ensure viewport meta tag behavior */
+.main {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+/* Fix for Streamlit's column system on mobile */
+@media screen and (max-width: 768px) {
+    /* Force single column layout on mobile */
+    .stColumns {
+        flex-direction: column !important;
+    }
+    
+    .stColumns > div {
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
