@@ -4214,6 +4214,7 @@ h1, h2, h3, h4 {
 
 /* ============================================
    RESPONSIVE DESIGN - ADAPTIVE TO ALL SCREENS
+   Supports: Mobile, Tablet, Desktop (Windows, iOS, Mac, Linux)
    ============================================ */
 
 /* Base responsive container */
