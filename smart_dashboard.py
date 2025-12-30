@@ -3017,13 +3017,31 @@ with tabs[0]:
                 filtered_manager_quality['low_quality'] = filtered.groupby('Manager_Name_Clean')['low_quality'].mean()
             else:
                 filtered_manager_quality['low_quality'] = 0
-            filtered_manager_quality.columns = ['Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate']
+            
+            # Add count of unique direct reportees (employees) per manager
+            if 'Employee Name' in filtered.columns:
+                direct_reportees_count = filtered.groupby('Manager_Name_Clean')['Employee Name'].nunique()
+            elif 'Employee ID' in filtered.columns:
+                direct_reportees_count = filtered.groupby('Manager_Name_Clean')['Employee ID'].nunique()
+            else:
+                # Fallback: use index if no employee identifier available
+                direct_reportees_count = filtered.groupby('Manager_Name_Clean').size()
+                direct_reportees_count = direct_reportees_count * 0  # Set to 0 if we can't calculate
+            
+            filtered_manager_quality['#Direct_Reportees'] = filtered_manager_quality.index.map(direct_reportees_count).fillna(0).astype(int)
+            
+            filtered_manager_quality.columns = ['Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate', '#Direct_Reportees']
             filtered_manager_quality = filtered_manager_quality.sort_values('Avg_SMART_Score', ascending=False).reset_index()
             
-            # Add original manager text for reference
+            # Reorder columns to put #Direct_Reportees after Manager_Name_Clean
+            column_order = ['Manager_Name_Clean', '#Direct_Reportees', 'Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate']
+            # Add Original_Manager_Text if it exists
             if manager_col in filtered.columns:
                 manager_mapping = filtered.groupby('Manager_Name_Clean')[manager_col].first()
                 filtered_manager_quality['Original_Manager_Text'] = filtered_manager_quality['Manager_Name_Clean'].map(manager_mapping)
+                column_order.append('Original_Manager_Text')
+            # Reorder columns
+            filtered_manager_quality = filtered_manager_quality[[col for col in column_order if col in filtered_manager_quality.columns]]
             
             # Show filter context
             filter_context = []
@@ -3055,13 +3073,31 @@ with tabs[0]:
                 filtered_manager_quality['low_quality'] = df.groupby('Manager_Name_Clean')['low_quality'].mean()
             else:
                 filtered_manager_quality['low_quality'] = 0
-            filtered_manager_quality.columns = ['Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate']
+            
+            # Add count of unique direct reportees (employees) per manager
+            if 'Employee Name' in df.columns:
+                direct_reportees_count = df.groupby('Manager_Name_Clean')['Employee Name'].nunique()
+            elif 'Employee ID' in df.columns:
+                direct_reportees_count = df.groupby('Manager_Name_Clean')['Employee ID'].nunique()
+            else:
+                # Fallback: use index if no employee identifier available
+                direct_reportees_count = df.groupby('Manager_Name_Clean').size()
+                direct_reportees_count = direct_reportees_count * 0  # Set to 0 if we can't calculate
+            
+            filtered_manager_quality['#Direct_Reportees'] = filtered_manager_quality.index.map(direct_reportees_count).fillna(0).astype(int)
+            
+            filtered_manager_quality.columns = ['Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate', '#Direct_Reportees']
             filtered_manager_quality = filtered_manager_quality.sort_values('Avg_SMART_Score', ascending=False).reset_index()
             
-            # Add original manager text for reference
+            # Reorder columns to put #Direct_Reportees after Manager_Name_Clean
+            column_order = ['Manager_Name_Clean', '#Direct_Reportees', 'Total_Goals', 'Avg_SMART_Score', 'High_Quality_Rate', 'Low_Quality_Rate']
+            # Add Original_Manager_Text if it exists
             if manager_col in df.columns:
                 manager_mapping = df.groupby('Manager_Name_Clean')[manager_col].first()
                 filtered_manager_quality['Original_Manager_Text'] = filtered_manager_quality['Manager_Name_Clean'].map(manager_mapping)
+                column_order.append('Original_Manager_Text')
+            # Reorder columns
+            filtered_manager_quality = filtered_manager_quality[[col for col in column_order if col in filtered_manager_quality.columns]]
         
         # Top and bottom performers
         col1, col2 = st.columns(2)
