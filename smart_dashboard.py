@@ -1859,15 +1859,20 @@ all_smart = st.sidebar.checkbox("Show only goals with all SMART pillars", value=
 # SMART Score filter - applicable to all tables in Tables tab
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Table-Specific Filters**")
-smart_score_min = st.sidebar.slider(
-    "SMART Score (Min)", 
+st.sidebar.markdown("**SMART Score Range Filter:**")
+smart_score_range = st.sidebar.slider(
+    "SMART Score Range", 
     min_value=0.0, 
     max_value=5.0, 
-    value=0.0, 
+    value=(0.0, 5.0), 
     step=0.1,
-    help="Filter employees by minimum average SMART score in Tables tab. Shows only employees whose average SMART score meets or exceeds this value."
+    help="Filter employees by average SMART score range in Tables tab. Shows only employees whose average SMART score falls within the selected range."
 )
-st.sidebar.markdown(f"*🔍 Shows employees with average SMART score ≥ {smart_score_min:.1f}*")
+smart_score_min, smart_score_max = smart_score_range
+# Ensure max is always >= min
+if smart_score_max < smart_score_min:
+    smart_score_max = smart_score_min
+st.sidebar.markdown(f"*🔍 Shows employees with average SMART score between {smart_score_min:.1f} and {smart_score_max:.1f}*")
 
 st.sidebar.markdown(SMART_INFO)
 
@@ -3246,14 +3251,18 @@ with tabs[1]:
     # Apply SMART Score filter to all tables in Tables tab (optimized)
     filtered_for_tables = filtered.copy()
     
-    if smart_score_min > 0:
+    # Apply SMART Score range filter if not showing all scores (0.0 to 5.0)
+    if smart_score_min > 0.0 or smart_score_max < 5.0:
         # Calculate average SMART score per employee (fast groupby operation)
         emp_avg_scores = filtered_for_tables.groupby('Employee ID')['SMART_score'].mean()
-        # Get employee IDs that meet the minimum score (fast vectorized operation)
-        keep_ids = emp_avg_scores[emp_avg_scores >= smart_score_min].index
+        # Get employee IDs that fall within the score range (fast vectorized operation)
+        keep_ids = emp_avg_scores[(emp_avg_scores >= smart_score_min) & (emp_avg_scores <= smart_score_max)].index
         # Filter the data to only include employees meeting the criteria (fast isin operation)
         filtered_for_tables = filtered_for_tables[filtered_for_tables['Employee ID'].isin(keep_ids)]
-        st.info(f"🎯 **SMART Score Filter Applied:** Showing only employees with average SMART score ≥ {smart_score_min:.1f} ({len(keep_ids)} employees)")
+        if smart_score_min == smart_score_max:
+            st.info(f"🎯 **SMART Score Filter Applied:** Showing only employees with average SMART score = {smart_score_min:.1f} ({len(keep_ids)} employees)")
+        else:
+            st.info(f"🎯 **SMART Score Filter Applied:** Showing only employees with average SMART score between {smart_score_min:.1f} and {smart_score_max:.1f} ({len(keep_ids)} employees)")
         st.markdown("---")
     
     # Recalculate SMART Combo only if needed (optimized vectorized version)
