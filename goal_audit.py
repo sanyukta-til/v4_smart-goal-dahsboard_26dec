@@ -2,6 +2,16 @@ import sys
 import argparse
 import re
 import pandas as pd
+import io
+
+# Fix Windows console encoding for emoji support
+if sys.platform == 'win32':
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except AttributeError:
+        pass  # If stdout/stderr don't have buffer attribute, skip
+
 from config import get_input_file, get_output_file
 from smart_rules import (
     EMPTY_METRIC_VALUES,

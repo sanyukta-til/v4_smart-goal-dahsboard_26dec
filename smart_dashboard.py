@@ -1903,7 +1903,50 @@ def smart_combo_label(row):
                 combo_parts.append(col[0])  # First letter of column name
     return ''.join(combo_parts) or "None"
 
-filtered["SMART Combo"] = filtered.apply(smart_combo_label, axis=1)
+# Optimized vectorized version for better performance
+def smart_combo_label_vectorized(df, smart_cols_list):
+    """Fast vectorized version of smart_combo_label - much faster than apply()"""
+    # Get only the SMART columns that exist in the dataframe
+    available_cols = [col for col in smart_cols_list if col in df.columns]
+    if not available_cols:
+        return pd.Series(["None"] * len(df), index=df.index)
+    
+    # Convert to boolean efficiently using vectorized operations
+    bool_df = df[available_cols].copy()
+    for col in available_cols:
+        # Handle boolean, numeric, and string types efficiently
+        if bool_df[col].dtype == 'bool':
+            bool_df[col] = bool_df[col].fillna(False)
+        else:
+            # Convert to boolean: True if value is truthy and not 'false'/'0'/'nan'
+            # Use efficient vectorized operations
+            col_series = bool_df[col]
+            bool_df[col] = (
+                col_series.notna() 
+                & (col_series != False) 
+                & (col_series != 0)
+                & (col_series.astype(str).str.lower() != 'false')
+                & (col_series.astype(str).str.lower() != '0')
+                & (col_series.astype(str).str.lower() != 'nan')
+            )
+    
+    # Create combo strings using vectorized operations - much faster
+    # Build combo string by concatenating column first letters where True
+    combo_series = pd.Series(index=df.index, dtype='object')
+    # Use list comprehension for better performance
+    combo_list = []
+    for idx in df.index:
+        combo_parts = ''.join([col[0] for col in available_cols if bool_df.loc[idx, col]])
+        combo_list.append(combo_parts if combo_parts else "None")
+    combo_series = pd.Series(combo_list, index=df.index)
+    
+    return combo_series
+
+# Use optimized vectorized version for better performance
+if all(col in filtered.columns for col in smart_cols):
+    filtered["SMART Combo"] = smart_combo_label_vectorized(filtered, smart_cols)
+else:
+    filtered["SMART Combo"] = filtered.apply(smart_combo_label, axis=1)
 combo_counts = filtered["SMART Combo"].value_counts().reset_index()
 combo_counts.columns = ["SMART Pillar Combo", "# Goals"]
 
@@ -3200,20 +3243,24 @@ with tabs[0]:
 with tabs[1]:
     st.title("SMART Goal Quality Dashboard - Tables")
     
-    # Apply SMART Score filter to all tables in Tables tab
+    # Apply SMART Score filter to all tables in Tables tab (optimized)
     filtered_for_tables = filtered.copy()
+    
     if smart_score_min > 0:
-        # Calculate average SMART score per employee
+        # Calculate average SMART score per employee (fast groupby operation)
         emp_avg_scores = filtered_for_tables.groupby('Employee ID')['SMART_score'].mean()
-        # Get employee IDs that meet the minimum score
+        # Get employee IDs that meet the minimum score (fast vectorized operation)
         keep_ids = emp_avg_scores[emp_avg_scores >= smart_score_min].index
-        # Filter the data to only include employees meeting the criteria
+        # Filter the data to only include employees meeting the criteria (fast isin operation)
         filtered_for_tables = filtered_for_tables[filtered_for_tables['Employee ID'].isin(keep_ids)]
         st.info(f"🎯 **SMART Score Filter Applied:** Showing only employees with average SMART score ≥ {smart_score_min:.1f} ({len(keep_ids)} employees)")
         st.markdown("---")
     
-    # Recalculate summary tables with filtered data
-    filtered_for_tables["SMART Combo"] = filtered_for_tables.apply(smart_combo_label, axis=1)
+    # Recalculate SMART Combo only if needed (optimized vectorized version)
+    if all(col in filtered_for_tables.columns for col in smart_cols):
+        filtered_for_tables["SMART Combo"] = smart_combo_label_vectorized(filtered_for_tables, smart_cols)
+    else:
+        filtered_for_tables["SMART Combo"] = filtered_for_tables.apply(smart_combo_label, axis=1)
     combo_counts_filtered = filtered_for_tables["SMART Combo"].value_counts().reset_index()
     combo_counts_filtered.columns = ["SMART Pillar Combo", "# Goals"]
     
